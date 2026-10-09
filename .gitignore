@@ -1,0 +1,26 @@
+# OS files
+.DS_Store
+desktop.ini
+Thumbs.db
+# Data files
+*.csv
+*.txt
+!requirements.txt
+data/
+# Python caches & virtual envs
+__pycache__/
+class3.md 2026-09-18
+3 / 10
+*.pyc
+.venv/
+venv/
+# IDE settings & Secrets
+.vscode/
+.idea/
+.env
+Feel free to add any other files or folders you want to ignore as needed.
+Run the following git commands:
+git status
+git add .gitignore
+git commit -m "Add .gitignore"s
+git status
