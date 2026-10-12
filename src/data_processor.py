@@ -12,7 +12,7 @@ def remove_duplicates(df):
     """Remove duplicate rows."""
     before = len(df)
     result = df.drop_duplicates()
-    logger.debug("remove_duplicates: %d → %d rows", before, len(result))
+    logger.debug("remove_duplicates: %d -> %d rows", before, len(result))
     return result
 
 
@@ -21,11 +21,11 @@ def handle_missing(df, axis="rows"):
     if axis == "rows":
         before = len(df)
         result = df.dropna(axis=0)
-        logger.debug("handle_missing: %d → %d rows", before, len(result))
+        logger.debug("handle_missing: %d -> %d rows", before, len(result))
     elif axis == "columns":
         before = df.shape[1]
         result = df.dropna(axis=1)
-        logger.debug("handle_missing: %d → %d columns", before, result.shape[1])
+        logger.debug("handle_missing: %d -> %d columns", before, result.shape[1])
     else:
         logger.error("Unsupported axis: %s", axis)
         raise ValueError(f"Unsupported axis: {axis}")

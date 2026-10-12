@@ -1,0 +1,25 @@
+validation:
+  # Replace these with ALL column names from the header row of fixtures/sample_data.csv
+  required_columns:
+    - id
+    - name
+    - category
+    - rating
+    - date
+  # Column(s) whose values should be numeric
+  numeric_columns:
+    - rating
+
+processing:
+  remove_duplicates: true
+
+  missing:
+    enabled: true
+    axis: "rows"
+
+  outliers:
+    enabled: true
+    columns:
+      - rating
+    method: "iqr"
+    threshold: 1.5
