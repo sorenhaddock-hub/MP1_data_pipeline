@@ -1,16 +1,17 @@
 """
-Data Processing Pipeline - CLI Template
+Data Processing Pipeline - CLI
 DS 3500 - MP1
 Usage:
-python pipeline.py --input data.csv --output clean.csv
-python pipeline.py --input data.csv --output results.json --format json --verbose
+python pipeline.py --input fixtures/sample.csv --config config.yaml --output cleaned_data.csv
+python pipeline.py --input fixtures/sample.csv --config config.yaml --output cleaned_data.csv --verbose
 """
 import argparse
-import csv
-import json
 import logging
 import sys
 from pathlib import Path
+
+from data_loaders import load_data
+from data_processor import process_data, create_cleaning_report
 
 logger = logging.getLogger(__name__)
 
@@ -20,29 +21,27 @@ def setup_logging(verbose=False):
     level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(
         level=level,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
         datefmt="%H:%M:%S",
-        stream=sys.stderr,
     )
-    logger.debug("Verbose logging enabled")
 
 
 def parse_arguments():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
-        description="Clean a CSV file and write it out as CSV or JSON."
+        description="Load, clean and save a CSV file using a YAML config."
     )
     parser.add_argument(
-        "-i", "--input", required=True, type=Path,
-        help="Path to the input CSV file",
+        "-i", "--input", required=True,
+        help="Path to the input file",
     )
     parser.add_argument(
-        "-o", "--output", required=True, type=Path,
-        help="Path for the output file",
+        "-c", "--config", required=True,
+        help="Path to the YAML configuration file",
     )
     parser.add_argument(
-        "-f", "--format", choices=["csv", "json"], default="csv",
-        help="Output format (default: csv)",
+        "-o", "--output", required=True,
+        help="Path for the cleaned CSV output",
     )
     parser.add_argument(
         "-v", "--verbose", action="store_true",
@@ -55,70 +54,64 @@ def validate_input(filepath):
     """Check whether the input path exists and is a file."""
     path = Path(filepath)
     if not path.exists():
-        logger.error("Input path does not exist: %s", path)
+        logger.error("Input file not found: %s", filepath)
         return False
     if not path.is_file():
-        logger.error("Input path is not a file: %s", path)
+        logger.error("Input path is not a file: %s", filepath)
         return False
-    logger.debug("Input file validated: %s", path)
+    logger.info("Input file validated: %s", filepath)
     return True
 
 
-def load_data(filepath):
-    """Read a CSV file into a list of dicts."""
-    with open(filepath, newline="", encoding="utf-8") as f:
-        rows = list(csv.DictReader(f))
-    logger.info("Loaded %d rows from %s", len(rows), filepath)
-    return rows
-
-
-def clean_data(rows):
-    """Strip whitespace from values and drop fully empty rows."""
-    cleaned = []
-    for row in rows:
-        stripped = {
-            (k.strip() if k else k): (v.strip() if isinstance(v, str) else v)
-            for k, v in row.items()
-        }
-        if any(v for v in stripped.values()):
-            cleaned.append(stripped)
-    logger.info("Dropped %d empty rows", len(rows) - len(cleaned))
-    return cleaned
-
-
-def write_output(rows, filepath, fmt):
-    """Write rows to CSV or JSON."""
-    filepath.parent.mkdir(parents=True, exist_ok=True)
-    if fmt == "json":
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(rows, f, indent=2)
-    else:
-        fieldnames = list(rows[0].keys()) if rows else []
-        with open(filepath, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(rows)
-    logger.info("Wrote %d rows to %s (%s)", len(rows), filepath, fmt)
+def print_report(report):
+    """Print the cleaning report, one key per line."""
+    print("{")
+    items = list(report.items())
+    for i, (key, value) in enumerate(items):
+        comma = "," if i < len(items) - 1 else ""
+        print(f"    '{key}': {value}{comma}")
+    print("}")
 
 
 def main():
     """Main pipeline function."""
     args = parse_arguments()
     setup_logging(args.verbose)
-    logger.debug("Arguments: %s", vars(args))
+    logger.debug(
+        "Arguments parsed: input=%s, config=%s, output=%s",
+        args.input, args.config, args.output,
+    )
 
+    # Validate both files before loading anything
     if not validate_input(args.input):
         sys.exit(1)
-
-    try:
-        rows = load_data(args.input)
-        rows = clean_data(rows)
-        write_output(rows, args.output, args.format)
-    except (OSError, csv.Error) as e:
-        logger.error("Pipeline failed: %s", e)
+    if not validate_input(args.config):
         sys.exit(1)
 
-    logger.info("Pipeline completed successfully")
+    # Load data and configuration
+    try:
+        data = load_data(args.input)
+        config = load_data(args.config)
+    except ValueError:
+        sys.exit(1)
+
+    # Process
+    df_before = data.copy()
+    try:
+        df_after = process_data(data, config)
+    except ValueError:
+        sys.exit(1)
+
+    # Report and save
+    report = create_cleaning_report(df_before, df_after)
+    print_report(report)
+    logger.info(
+        "Processing complete: %d → %d rows",
+        report["rows_before"], report["rows_after"],
+    )
+
+    df_after.to_csv(args.output, index=False)
+    logger.info("Saved cleaned data to %s", args.output)
 
 
 if __name__ == "__main__":
