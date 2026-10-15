@@ -1,12 +1,10 @@
 validation:
-  # Replace these with ALL column names from the header row of fixtures/sample_data.csv
   required_columns:
-    - id
-    - name
-    - category
-    - rating
-    - date
-  # Column(s) whose values should be numeric
+    -record_id
+    -name
+    -rating
+    -category
+    -status
   numeric_columns:
     - rating
 
